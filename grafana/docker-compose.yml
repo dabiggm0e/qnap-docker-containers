@@ -18,7 +18,8 @@ services:
     command: >
           bash -c "\
             # Installing plugins
-            grafana cli plugins install yesoreyeram-infinity-datasource"
+            # Note: the container needs to restart after installing new plugins
+            grafana cli plugins install yesoreyeram-infinity-datasource marcusolsson-csv-datasource"
 
 networks:
   #qnet-dhcp-eth1-6d6da6:
