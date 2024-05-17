@@ -11,8 +11,13 @@ services:
             mkdir -p /var/log/cron && \
             export DEBIAN_FRONTEND=noninteractive && \
             
+            # Install depedencies
+            apt-get update && \
+            apt-get install -y --no-install-recommends vim speedtest-cli cron tzdata moreutils && \
+            ln -fs /usr/share/zoneinfo/Europe/Luxembourg /etc/localtime && \            
+          
             # Init the CSV file
-            echo 'if [[ ! -f /mnt/data/speed.csv ]]; then echo \"Timestamp,Ping,Download,Upload\" > /mnt/data/speed.csv; fi' > /usr/local/bin/init_csv.sh && \
+            echo 'if [[ ! -f /mnt/data/speed.csv ]]; then speedtest --csv-header > /mnt/data/speed.csv; fi' > /usr/local/bin/init_csv.sh && \
             chmod +x /usr/local/bin/init_csv.sh && \            
             /usr/local/bin/init_csv.sh && \
             
@@ -20,18 +25,16 @@ services:
             # Redirecting stderr 2> to stdout 1> and stdout 1> to 3>
             # Then appending timestamp only to 2>
             # Redirecting 3> to stdout
-            echo '{ speedtest --csv 2>&1 1>&3 | ts >> /mnt/data/speed.err | cut -d \",\" -f 4,6,7,8,3; } 3>> /mnt/data/speed.csv' > /usr/local/bin/run_speedtest.sh && \
+            echo '{ speedtest --csv 2>&1 1>&3 | ts >> /mnt/data/speed.err; } 3>> /mnt/data/speed.csv' > /usr/local/bin/run_speedtest.sh && \
             chmod +x /usr/local/bin/run_speedtest.sh && \
             /usr/local/bin/run_speedtest.sh && \
   
-            # Install depedencies
-            apt-get update && \
-            apt-get install -y --no-install-recommends vim speedtest-cli cron tzdata moreutils && \
-            ln -fs /usr/share/zoneinfo/Europe/Luxembourg /etc/localtime && \            
-          
+            
             # Scheduling the cron job
             # Note: cron jobs scheduled at HH:00 would fail from speedtest.
-            echo '*/10 * * * * root /bin/bash /usr/local/bin/run_speedtest.sh' > /etc/cron.d/speedtest-cron && \
+            # Note: For some reason, the cron daemon doesn't execute 10 minutes intervals
+            #       when using */10. Workaround is to enumerate the minutes.
+            echo '2,12,22,32,42,52 * * * * root /bin/bash /usr/local/bin/run_speedtest.sh' > /etc/cron.d/speedtest-cron && \
             echo '0 0 * * 0 apt-get update && apt-get install -y --no-install-recommends speedtest-cli' > /etc/cron.d/weekly-update && \                                                
             cron -f"
             
