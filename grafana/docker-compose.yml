@@ -1,0 +1,27 @@
+version: '3'
+name: grafana
+
+services:
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    hostname: grafana            
+    volumes:
+      - /share/CACHEDEV1_DATA/Public/:/mnt/public
+    ports:
+      - 3000:3000
+    networks:
+      #- qnet-dhcp-eth1-6d6da6
+      - grafana
+           
+    restart: always
+    command: >
+          bash -c "\
+            # Installing plugins
+            grafana cli plugins install yesoreyeram-infinity-datasource"
+
+networks:
+  #qnet-dhcp-eth1-6d6da6:
+  grafana:
+    #external: true
+    driver: bridge
