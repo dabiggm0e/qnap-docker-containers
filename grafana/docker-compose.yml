@@ -17,9 +17,16 @@ services:
     restart: always
     command: >
           bash -c "\
-            # Installing plugins
+            # Installing plugins            
+            grafana cli plugins install yesoreyeram-infinity-datasource  && \
+            grafana cli plugins install marcusolsson-csv-datasource  && \
+            # Enable local mode
+            echo '[plugin.marcusolsson-csv-datasource]' >> /etc/grafana/grafana.ini && \
+            echo 'allow_local_mode = true' >> /etc/grafana/grafana.ini  && \
+
             # Note: the container needs to restart after installing new plugins
-            grafana cli plugins install yesoreyeram-infinity-datasource marcusolsson-csv-datasource"
+            echo 'Rebooting to enable the newly installed plugins' && \
+            reboot"
 
 networks:
   #qnet-dhcp-eth1-6d6da6:
