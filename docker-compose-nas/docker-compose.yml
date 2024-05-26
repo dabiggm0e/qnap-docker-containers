@@ -82,6 +82,9 @@ services:
       - homepage.widget.type=sonarr
       - homepage.widget.url=http://sonarr:8989/sonarr
       - homepage.widget.key=${SONARR_API_KEY}
+    depends_on:
+      - prowlarr
+      - qbittorrent
 
   radarr:
     image: lscr.io/linuxserver/radarr
@@ -119,6 +122,9 @@ services:
       - homepage.widget.type=radarr
       - homepage.widget.url=http://radarr:7878/radarr
       - homepage.widget.key=${RADARR_API_KEY}
+    depends_on:
+      - prowlarr
+      - qbittorrent
 
   # lidarr:
   #   image: lscr.io/linuxserver/lidarr
@@ -196,6 +202,9 @@ services:
       - homepage.widget.type=bazarr
       - homepage.widget.url=http://bazarr:6767/bazarr
       - homepage.widget.key=${BAZARR_API_KEY}
+    depends_on:
+      - prowlarr
+      - qbittorrent
 
   readarr:
     image: lscr.io/linuxserver/readarr:develop
@@ -206,12 +215,37 @@ services:
       - TZ=${TIMEZONE}
     volumes:
       - ${CONFIG_ROOT:-.}/readarr/config:/config
+      - ${CALIBRE_LIBRARY_ROOT}:/books
       - ${DATA_ROOT}:/data
     ports:
       - 8787:8787
     dns:
       - 192.168.178.128
+      - 192.168.178.1    
+    depends_on:
+      - prowlarr
+      - qbittorrent
+    restart: unless-stopped
+
+  speakarr:
+    image: lscr.io/linuxserver/readarr:develop
+    container_name: speakarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=${TIMEZONE}
+    volumes:
+      - ${CONFIG_ROOT:-.}/speakarr/config:/config
+      - ${SPEAKARR_ROOT}:/audiobooks
+      - ${DATA_ROOT}:/data
+    ports:
+      - 8788:8787
+    dns:
+      - 192.168.178.128
       - 192.168.178.1
+    depends_on:
+      - prowlarr
+      - qbittorrent
     restart: unless-stopped
   # jellyseerr:
   #   image: fallenbagel/jellyseerr:latest
@@ -355,11 +389,12 @@ services:
       - PGID=${GROUP_ID}
       - TZ=${TIMEZONE}
       - WEBUI_PORT=8080
-      - DOCKER_MODS=ghcr.io/gabe565/linuxserver-mod-vuetorrent
+      #- DOCKER_MODS=ghcr.io/gabe565/linuxserver-mod-vuetorrent
     volumes:
       - ${CONFIG_ROOT:-.}/qbittorrent:/config
       - ${DATA_ROOT}:/data
       #- ${DOWNLOAD_ROOT}:/data/torrents
+
     ports:
       - 8008:8080/tcp
       - 6880:6880
@@ -547,15 +582,16 @@ services:
   #     - traefik.http.routers.homepage.tls.certresolver=myresolver
   #     - traefik.http.services.homepage.loadbalancer.server.port=3000
   
-  watchtower:
-    image: containrrr/watchtower
-    container_name: watchtower
-    #network_mode: bridge
-    restart: always
-    environment:
-      - WATCHTOWER_CLEANUP=true
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+  #watchtower:
+  #  image: containrrr/watchtower
+  #  container_name: watchtower
+  #  #network_mode: bridge
+  #  restart: always
+  #  environment:
+  #    - WATCHTOWER_CLEANUP=true
+  #  volumes:
+  #    - /var/run/docker.sock:/var/run/docker.sock
+  
   autoheal:
     image: willfarrell/autoheal:latest
     container_name: autoheal
@@ -621,6 +657,60 @@ services:
     profiles:
       - homeassistant
 
+  calibre:
+    image: lscr.io/linuxserver/calibre:latest
+    container_name: calibre
+    security_opt:
+      - seccomp:unconfined #optional
+    environment:
+      - PUID=${USER_ID}
+      - PGID=${GROUP_ID}
+      - TZ=${TIMEZONE}
+      #- PASSWORD= #optional. default abc
+      #- CLI_ARGS= #optional  default abc
+    volumes:        
+      - ${CONFIG_ROOT:-.}/calibre/config:/config
+      - ${CALIBRE_LIBRARY_ROOT}:/books
+      - ${READARR_DOWNLOAD_ROOT}:/uploads
+    ports:
+      - 8080:8080
+      - 8181:8181
+      - 8081:8081
+    dns:
+      - 192.168.178.128
+      - 192.168.178.1
+    restart: unless-stopped
+
+  calibre-web:
+    image: lscr.io/linuxserver/calibre-web:latest
+    container_name: calibre-web
+    environment:
+      - PUID=${USER_ID}
+      - PGID=${GROUP_ID}
+      - TZ=${TIMEZONE}
+      #- DOCKER_MODS=linuxserver/mods:universal-calibre #optional
+      #- OAUTHLIB_RELAX_TOKEN_SCOPE=1 #optional
+    volumes:      
+      - ${CONFIG_ROOT:-.}/calibre-web/config:/config
+      - ${CALIBRE_LIBRARY_ROOT}:/data
+    ports:
+      - 8083:8083
+    depends_on:
+      - calibre
+    restart: unless-stopped
+
+  audiobookshelf:
+    image: ghcr.io/advplyr/audiobookshelf:latest
+    container_name: audiobookshelf
+    ports:
+      - 13378:80
+    volumes:
+      - ${CONFIG_ROOT:-.}/audiobookshelf/config:/config
+      - ${CONFIG_ROOT:-.}/audiobookshelf/metadata:/metadata
+      - ${DATA_ROOT:-.}/Media/Audiobooks:/data
+    environment:
+      - TZ=${TIMEZONE}
+      
 networks:
   default:
     name: docker-compose-nas
